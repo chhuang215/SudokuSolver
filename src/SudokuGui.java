@@ -1,3 +1,11 @@
+/*
+ * SudokuGui.java
+ * 
+ * Main/GUI class for this Sodoku Solver application
+ * 
+ * @author Chih-Hsuan Huang
+ * Date: February 20, 2016
+ */
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -10,12 +18,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.PlainDocument;
 import java.awt.GridLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -74,6 +87,38 @@ public class SudokuGui extends JFrame {
 					for(int celly = 0; celly < 3; celly++){
 						JTextField t = new JTextField(1);
 						t.setHorizontalAlignment(JTextField.CENTER);
+						t.setDocument(new PlainDocument(){
+							@Override
+							public void insertString(int offs, String str, AttributeSet a) throws BadLocationException{
+								 if((getLength() + str.length()) <= 1){
+									 char[] ch = str.toCharArray();
+									 for(char c:ch){
+										 if(!Character.isDigit(c)) return;
+									 }
+									  super.insertString(offs, str, a);
+								 }
+							         
+							}
+						});
+						t.addMouseListener(new MouseListener() {
+							@Override
+							public void mouseReleased(MouseEvent e) {}
+							@Override
+							public void mousePressed(MouseEvent e) {
+								JTextField jt = (JTextField)e.getComponent();
+								jt.selectAll();
+								
+							}
+							@Override
+							public void mouseExited(MouseEvent e) {}
+							
+							@Override
+							public void mouseEntered(MouseEvent e) {}
+							
+							@Override
+							public void mouseClicked(MouseEvent e) {}
+						});
+						
 						Font f = t.getFont();
 						t.setFont(new Font(f.getFamily(),f.getStyle(),24));
 						p.add(t);

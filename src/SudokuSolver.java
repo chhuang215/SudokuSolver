@@ -1,5 +1,13 @@
-import java.util.Arrays;
+/*
+ * SudokuSolver.java
+ * 
+ * Logic class for this Sodoku Solver application
+ * 
+ * @author Chih-Hsuan Huang
+ * Date: February 20, 2016
+ */
 
+import java.util.Arrays;
 
 public class SudokuSolver {
 	public static final int MAX_VALUE = 9;
