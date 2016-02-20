@@ -3,7 +3,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
-
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -11,14 +10,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
-
 import java.awt.GridLayout;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 
 @SuppressWarnings("serial")
 public class SudokuGui extends JFrame {
@@ -31,14 +33,10 @@ public class SudokuGui extends JFrame {
 	
 	private JPanel jpSidePane;
 	private JPanel jpButtonPane;
-	
-	
+
 	private JLabel lblMessage;
 	
-	private JButton btnStart;
-	
 	private JButton btnSolve;
-	private JButton btnInit;
 	private JButton btnSelectFromFile;
 	
 	private JButton btnClear;
@@ -50,24 +48,39 @@ public class SudokuGui extends JFrame {
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 600, 469);	
-
+		
+		// Initialize Solver object
 		ss = new SudokuSolver();
 		
+		/* Initialize main 3x3 board*/
 		jpBoard = new JPanel();
+		
+		jpBoard.setBorder(new EmptyBorder(5, 5, 5, 5));
+		jpBoard.setLayout(new GridLayout(3, 3, 2, 2));
 		jpBoard.setPreferredSize(new Dimension(450, 450));
 		jpBoard.setMinimumSize(new Dimension(450, 450));
 		jpBoard.setMaximumSize(new Dimension(450, 450));
-		jpBoard.setBorder(new EmptyBorder(5, 5, 5, 5));
-		jpBoard.setLayout(new GridLayout(3, 3, 2, 2));
 
+		/* Initialize sub 3x3 board and add it onto the main board*/
 		jpSubboard = new JPanel[3][3];
 
-		
 		for(int i = 0; i < 3; i++){
 			for(int j = 0; j < 3; j++){
 				JPanel p = jpSubboard[i][j] = new JPanel();
+				
 				p.setLayout(new GridLayout(3,3,0,0));
-				setSubBoard(p);
+				
+				for(int cellx = 0; cellx < 3; cellx++){
+					for(int celly = 0; celly < 3; celly++){
+						JTextField t = new JTextField(1);
+						t.setHorizontalAlignment(JTextField.CENTER);
+						Font f = t.getFont();
+						t.setFont(new Font(f.getFamily(),f.getStyle(),24));
+						p.add(t);
+
+					}
+				}
+				
 				jpBoard.add(p);
 			}
 		}
@@ -77,34 +90,21 @@ public class SudokuGui extends JFrame {
 		GridBagLayout gbl_buttonPane = new GridBagLayout();
 		jpButtonPane.setLayout(gbl_buttonPane);
 		
-		btnStart = new JButton("Start");
-		btnStart.addActionListener(new ActionListener() {
-			
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				
-				
-			}
-		});
-		
-		GridBagConstraints gbc_btnStart = new GridBagConstraints();
-		gbc_btnStart.insets = new Insets(0, 0, 5, 5);
-		gbc_btnStart.gridx = 0;
-		gbc_btnStart.gridy = 0;
-		jpButtonPane.add(btnStart, gbc_btnStart);
-		
-		// btnSolve
+		// Button: Solve puzzle
 		btnSolve = new JButton("Solve");
 		btnSolve.addActionListener(new ActionListener() {
-			
+	
 			@Override
 			public void actionPerformed(ActionEvent e) {
+
 				if(solve()){
-					lblMessage.setText("Solved!");
+					lblMessage.setText("<html><p>Solved!</p><html>");
 				}
 				else{
-					lblMessage.setText("Unsolvable");
+					lblMessage.setText("<html><p>Unsolvable.</p><html>");
 				}
+				
+				refreshBoardValue();
 				
 			}
 		});
@@ -115,20 +115,14 @@ public class SudokuGui extends JFrame {
 		gbc_btnSolve.gridy = 1;
 		jpButtonPane.add(btnSolve, gbc_btnSolve);
 		
-		btnInit = new JButton("Set initial value");
-		GridBagConstraints gbc_btnInit = new GridBagConstraints();
-		gbc_btnInit.insets = new Insets(0, 0, 5, 5);
-		gbc_btnInit.gridx = 0;
-		gbc_btnInit.gridy = 2;
-		jpButtonPane.add(btnInit, gbc_btnInit);
-		
-		btnSelectFromFile = new JButton("Load board file");
+		// Button: Select file
+		btnSelectFromFile = new JButton("Select file");
 		btnSelectFromFile.addActionListener(new ActionListener() {
 				
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					chooseFile();
-					
+					refreshBoardValue();
 				}
 			});
 		GridBagConstraints gbc_btnSelectFromFile = new GridBagConstraints();
@@ -137,14 +131,35 @@ public class SudokuGui extends JFrame {
 		gbc_btnSelectFromFile.gridy = 3;
 		jpButtonPane.add(btnSelectFromFile, gbc_btnSelectFromFile);
 		
+		// Button: Clear board
 		btnClear = new JButton("Clear");
+		btnClear.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ss.restartPuzzle();
+				
+				refreshBoardValue();
+			}
+		});
 		GridBagConstraints gbc_btnClear = new GridBagConstraints();
 		gbc_btnClear.insets = new Insets(0, 0, 5, 5);
 		gbc_btnClear.gridx = 0;
 		gbc_btnClear.gridy = 4;
 		jpButtonPane.add(btnClear, gbc_btnClear);
 		
+		// Button: Clear and reset board
 		btnClearAll = new JButton("Clear All");
+		btnClearAll.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				lblMessage.setText("<html>Insert values<br><br>Or<br><br>Load values<br>from file<br></html>");
+				ss.resetPuzzle();
+				
+				refreshBoardValue();
+			}
+		});
 		GridBagConstraints gbc_btnClearAll = new GridBagConstraints();
 		gbc_btnClearAll.insets = new Insets(0, 0, 5, 5);
 		gbc_btnClearAll.gridx = 0;
@@ -152,39 +167,71 @@ public class SudokuGui extends JFrame {
 		jpButtonPane.add(btnClearAll, gbc_btnClearAll);
 		/*end Button Panel*/
 		
-		lblMessage = new JLabel("Message goes here");
+		// Label: Message display
+		lblMessage = new JLabel("<html>Insert values<br><br>Or<br><br>Load values<br>from file<br></html>");
 		lblMessage.setMaximumSize(new Dimension(250, 300));
 		lblMessage.setMinimumSize(new Dimension(250, 300));
 		lblMessage.setBackground(Color.WHITE);
 		lblMessage.setOpaque(true);
+		lblMessage.setFont(new Font(lblMessage.getFont().getFamily(), lblMessage.getFont().getStyle(), 16));
+		lblMessage.setHorizontalAlignment(JTextField.CENTER);
+		
+		/* Add Message Label and Button panel to the Side Panel*/
 		jpSidePane = new JPanel(new BorderLayout());
 		jpSidePane.add(jpButtonPane, BorderLayout.CENTER);
 		jpSidePane.add(lblMessage,BorderLayout.NORTH);
+		
+		/* Add main puzzle Board Panel to the centre of main panel*/
 		mainContentPane = new JPanel();
 		mainContentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		mainContentPane.setLayout(new BorderLayout());
+		
 		mainContentPane.add(jpBoard, BorderLayout.CENTER);
 		mainContentPane.add(jpSidePane, BorderLayout.EAST);
 		
 		setContentPane(mainContentPane);
-		
-		
 	}
 	
-	private void setSubBoard(JPanel p){
-		for(int i = 0; i < 3; i++){
-			for(int j = 0; j < 3; j++){
-				JTextField t = new JTextField(1);
-				
-				t.setHorizontalAlignment(JTextField.CENTER);
-				Font f = t.getFont();
-				t.setFont(new Font(f.getFamily(),f.getStyle(),24));
-				p.add(t);
-
+	/**
+	 * Refresh the values and status of the board
+	 */
+	private void refreshBoardValue(){
+		int [][] board = ss.getPuzzle();
+		
+		for(int row = 0; row < board.length; row++){
+			for(int col = 0; col < board[0].length; col++){
+				JTextField jtextfield = (JTextField)(jpSubboard[row/3][col/3].getComponent(((row%3)*3) + (col%3)));
+				if(board[row][col] != 0){
+					jtextfield.setText(""+board[row][col]);
+					if(ss.isPreset(row,col)){
+						jtextfield.setForeground(Color.BLUE);
+						jtextfield.setEditable(false);
+					}
+					else{
+						jtextfield.setForeground(Color.BLACK);
+						jtextfield.setEditable(true);
+					}
+				}
+				else{
+					jtextfield.setText("");
+					jtextfield.setForeground(Color.BLACK);
+					jtextfield.setEditable(true);
+				}
 			}
 		}
 	}
 	
+	/**
+	 * Return a value of a cell
+	 * 
+	 * @param suboardx: sub board x position (0-2)
+	 * @param suboardy: sub board y position (0-2)
+	 * @param cellx: cell x position (0-2)
+	 * @param celly: cell y position (0-2)
+	 * @return a number on the cell in the range of 1-9,
+	 * 			return 0 otherwise.
+	 * 				
+	 */
 	private int getBoardValue(int suboardx,int suboardy, int cellx,int celly){
 
 		JTextField jtf = (JTextField)(jpSubboard[suboardx][suboardy].getComponent(cellx*3 + celly));
@@ -200,17 +247,47 @@ public class SudokuGui extends JFrame {
 		return 0;
 	}
 	
+	/**
+	 * Open file chooser and load puzzle from a file
+	 */
 	private void chooseFile(){
 		String line = null;
 		JFileChooser fc = new JFileChooser();
 		int returnVal = fc.showOpenDialog(this);
 		if(returnVal == JFileChooser.APPROVE_OPTION){
-			File file = fc.getSelectedFile();
+			
+			try {
+				File file = fc.getSelectedFile();
+				FileReader fr = new FileReader(file);
+				BufferedReader br = new BufferedReader(fr);
+				String strPuzzle = "";
+				char[] charPuzzle = null;
+				while((line = br.readLine()) != null){
+					line = line.replaceAll("[^\\d.]|\\n|\\s", "");
+					strPuzzle += line;
+				}
+				
+				charPuzzle = strPuzzle.toCharArray();
+				
+				ss.setPuzzle(ss.convertToIntPuzzle(charPuzzle));
+				
+				fr.close();
+				br.close();
+			} catch (FileNotFoundException e) {
+				lblMessage.setText("<html>File not found<html>");
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 			
 		}
 		
 	}
 	
+	/**
+	 * Solve the puzzle
+	 * @return true: the puzzle is solved, false otherwise
+	 */
 	private boolean solve(){
 		
 		int[][] puzzle = new int[9][9];
@@ -226,7 +303,9 @@ public class SudokuGui extends JFrame {
 			}	
 		}
 		
-		return ss.solve(puzzle);
+		if(!ss.setPuzzle(puzzle)) {return false;}
+		
+		return ss.solve();
 	}
 	
 	/**
@@ -238,8 +317,7 @@ public class SudokuGui extends JFrame {
 				try {			
 					SudokuGui sudokugui = new SudokuGui();
 					sudokugui.setVisible(true);
-					sudokugui.pack();
-					
+
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
